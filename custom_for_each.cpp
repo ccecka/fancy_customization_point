@@ -35,7 +35,7 @@ auto invoke(FancyExecutionPolicy&& policy, CustomizationPoint&& customization_po
   std::cout << "mine::invoke(fancy, " << typeid(CustomizationPoint).name() << ", args...)" << std::endl;
 
   // call the customization point with seq
-  return customization_point(seq, std::forward<Args>(args)...);
+  return customization_point(fancy, std::forward<Args>(args)...);
 
   // Because customization_points are callable objects, they can be invoked via experimental::invoke()
   // Therefore, the above call ends up being equivalent to:
@@ -54,6 +54,10 @@ auto invoke(FancyExecutionPolicy&& policy, CustomizationPoint&& customization_po
 
 
 }
+
+#include <vector>
+#include <algorithm>
+#include <numeric>
 
 int main()
 {
@@ -79,7 +83,7 @@ int main()
   std::cout << std::endl;
   std::cout << std::endl;
 
-  // should print something fancy like mine::invoke(fancy, for_each_t), 
+  // should print something fancy like mine::invoke(fancy, for_each_t),
   // and then something like mine::seq_policy::for_each(),
   // and then the numbers
   experimental::for_each(mine::fancy, vec.begin(), vec.end(), [](int x)
@@ -92,4 +96,3 @@ int main()
 
   std::cout << "OK" << std::endl;
 }
-

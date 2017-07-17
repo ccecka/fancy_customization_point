@@ -78,7 +78,7 @@ struct drop_first_arg_and_invoke
 //       };
 //
 // * CallFreeFunction is a function type whose job is to call the name of the customization point as a free function.
-// 
+//
 //   For example, CallFreeFunction for begin_t could work like this:
 //
 //       struct call_free_function_begin
@@ -106,7 +106,7 @@ struct drop_first_arg_and_invoke
 //        arg1.customization-point-name(args...)
 //
 // 2. Try to call the customization_point by name as a free function:
-//    
+//
 //        customization-point-name(arg1, args...)
 //
 // 3. Try to call the customization point via experimental::invoke:
@@ -122,9 +122,9 @@ struct drop_first_arg_and_invoke
 
 template<class Derived, class CallMemberFunction, class CallFreeFunction, class... FallbackFunctions>
 class customization_point : private multi_function<
+  detail::invoke_customization_point,
   detail::drop_first_arg_and_invoke<CallMemberFunction>,
   detail::drop_first_arg_and_invoke<CallFreeFunction>,
-  detail::invoke_customization_point,
   detail::drop_first_arg_and_invoke<FallbackFunctions>...
 >
 {
@@ -134,9 +134,9 @@ class customization_point : private multi_function<
     // however, this "self" parameter is not included in the signature of the other functions ADLFunction & FallbackFunctions...
     // so, wrap them in a wrapper functor which discards its first parameter before calling the wrapped function
     using super_t = multi_function<
+      detail::invoke_customization_point,
       detail::drop_first_arg_and_invoke<CallMemberFunction>,
       detail::drop_first_arg_and_invoke<CallFreeFunction>,
-      detail::invoke_customization_point,
       detail::drop_first_arg_and_invoke<FallbackFunctions>...
     >;
 
@@ -151,34 +151,39 @@ class customization_point : private multi_function<
       return static_cast<const derived_type&>(*this);
     }
 
+    using dispatcher_type = multi_function<
+      detail::drop_first_arg_and_invoke<CallMemberFunction>,
+      detail::drop_first_arg_and_invoke<CallFreeFunction>,
+      detail::drop_first_arg_and_invoke<FallbackFunctions>...
+    >;
+
   public:
     constexpr customization_point()
       : customization_point(CallMemberFunction{}, CallFreeFunction{}, FallbackFunctions{}...)
     {}
 
     constexpr customization_point(CallMemberFunction call_member_function, CallFreeFunction call_free_function, FallbackFunctions... fallback_funcs)
-      : super_t(detail::drop_first_arg_and_invoke<CallMemberFunction>{call_member_function},
-                detail::drop_first_arg_and_invoke<CallFreeFunction>{call_free_function},
-                detail::invoke_customization_point{},
-                detail::drop_first_arg_and_invoke<FallbackFunctions>{fallback_funcs}...)
+        : super_t(detail::invoke_customization_point{},
+                  detail::drop_first_arg_and_invoke<CallMemberFunction>{call_member_function},
+                  detail::drop_first_arg_and_invoke<CallFreeFunction>{call_free_function},
+                  detail::drop_first_arg_and_invoke<FallbackFunctions>{fallback_funcs}...)
     {}
 
     template<class Arg1, class... Args>
     constexpr auto operator()(Arg1&& arg1, Args&&... args) const ->
-      decltype(super_t::operator()(self(), std::forward<Arg1>(arg1), std::forward<Args>(args)...))
+      decltype(super_t::operator()(dispatcher_type{}, std::forward<Arg1>(arg1), std::forward<Args>(args)...))
     {
-      return super_t::operator()(self(), std::forward<Arg1>(arg1), std::forward<Args>(args)...);
+      return super_t::operator()(dispatcher_type{}, std::forward<Arg1>(arg1), std::forward<Args>(args)...);
     }
 };
 
 
-template<class CallMemberFunction, class CallFreeFunction, class... FallbackFunctions>
-constexpr customization_point<void,CallMemberFunction,CallFreeFunction,FallbackFunctions...>
-  make_customization_point(CallMemberFunction call_member_func, CallFreeFunction call_free_func, FallbackFunctions... fallback_funcs)
+template<class... Functions>
+constexpr customization_point<void,Functions...>
+  make_customization_point(Functions... funcs)
 {
-  return customization_point<void,CallMemberFunction,CallFreeFunction,FallbackFunctions...>(call_member_func, call_free_func, fallback_funcs...);
+  return customization_point<void,Functions...>(funcs...);
 }
 
 
 } // end experimental
-
