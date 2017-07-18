@@ -35,7 +35,7 @@ auto invoke(FancyExecutionPolicy&& policy, CustomizationPoint&& customization_po
   std::cout << "mine::invoke(fancy, " << typeid(CustomizationPoint).name() << ", args...)" << std::endl;
 
   // call the customization point with seq
-  return customization_point(fancy, std::forward<Args>(args)...);
+  return customization_point(seq, std::forward<Args>(args)...);
 
   // Because customization_points are callable objects, they can be invoked via experimental::invoke()
   // Therefore, the above call ends up being equivalent to:
