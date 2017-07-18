@@ -120,12 +120,10 @@ struct drop_first_arg_and_invoke
 // If all of these implementations are ill-formed, then the call to the customization_point is ill-formed.
 
 
-template<class Derived, class CallMemberFunction, class CallFreeFunction, class... FallbackFunctions>
+template<class Derived, class... Functions>
 class customization_point : private multi_function<
   detail::invoke_customization_point,
-  detail::drop_first_arg_and_invoke<CallMemberFunction>,
-  detail::drop_first_arg_and_invoke<CallFreeFunction>,
-  detail::drop_first_arg_and_invoke<FallbackFunctions>...
+  detail::drop_first_arg_and_invoke<Functions>...
 >
 {
   private:
@@ -135,9 +133,7 @@ class customization_point : private multi_function<
     // so, wrap them in a wrapper functor which discards its first parameter before calling the wrapped function
     using super_t = multi_function<
       detail::invoke_customization_point,
-      detail::drop_first_arg_and_invoke<CallMemberFunction>,
-      detail::drop_first_arg_and_invoke<CallFreeFunction>,
-      detail::drop_first_arg_and_invoke<FallbackFunctions>...
+      detail::drop_first_arg_and_invoke<Functions>...
     >;
 
     using derived_type = std::conditional_t<
@@ -151,22 +147,16 @@ class customization_point : private multi_function<
       return static_cast<const derived_type&>(*this);
     }
 
-    using dispatcher_type = multi_function<
-      detail::drop_first_arg_and_invoke<CallMemberFunction>,
-      detail::drop_first_arg_and_invoke<CallFreeFunction>,
-      detail::drop_first_arg_and_invoke<FallbackFunctions>...
-    >;
+    using dispatcher_type = multi_function<Functions...>;
 
   public:
     constexpr customization_point()
-      : customization_point(CallMemberFunction{}, CallFreeFunction{}, FallbackFunctions{}...)
+      : customization_point(Functions{}...)
     {}
 
-    constexpr customization_point(CallMemberFunction call_member_function, CallFreeFunction call_free_function, FallbackFunctions... fallback_funcs)
+    constexpr customization_point(Functions... funcs)
         : super_t(detail::invoke_customization_point{},
-                  detail::drop_first_arg_and_invoke<CallMemberFunction>{call_member_function},
-                  detail::drop_first_arg_and_invoke<CallFreeFunction>{call_free_function},
-                  detail::drop_first_arg_and_invoke<FallbackFunctions>{fallback_funcs}...)
+                  detail::drop_first_arg_and_invoke<Functions>{funcs}...)
     {}
 
     template<class Arg1, class... Args>
