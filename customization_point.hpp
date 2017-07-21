@@ -59,76 +59,31 @@ struct drop_first_arg_and_invoke
 
 
 // customization_point is a class for creating Niebler-style customization points
+// which attempt one implementation after another, in order, to find an appropriate
+// dispatch.
 //
-// * Derived is the name of the type (if any) derived from this customization_point (e.g., begin_t)
-//   If no type derives from customization_point, use void.
+// A customization point differs from a multi_function only in that it passes itself
+// as the first parameter to each of the potential dispatch functions. Users may use
+// detail::drop_first_arg_and_invoke for a simpler interface.
 //
-// * CallMemberFunction is a function type whose job is to call the name of the customization point as a member function.
-//
-//   For example, CallMemberFunction for begin_t could work like this:
-//
-//       struct call_member_function_begin
-//       {
-//         template<class Arg1, class... Args>
-//         constexpr auto operator()(Arg1&& arg1, Args&&... args) const ->
-//           decltype(std::forward<Arg1>(arg1).begin(std::forward<Args>(args)...))
-//         {
-//           // call begin as a free function
-//           return std::forward<Arg1>(arg1).begin(std::forward<Args>(args)...);
-//         }
-//       };
-//
-// * CallFreeFunction is a function type whose job is to call the name of the customization point as a free function.
-//
-//   For example, CallFreeFunction for begin_t could work like this:
-//
-//       struct call_free_function_begin
-//       {
-//         template<class... Args>
-//         constexpr auto operator()(Args&&... args) const ->
-//           decltype(begin(std::forward<Args>(args)...))
-//         {
-//           // call begin via ADL
-//           return begin(std::forward<Args>(args)...);
-//         }
-//       };
-//
-// * FallbackFunctions... is a list of functions to use if the first two calls fail. They are attempted in order.
-//   Their signature is the same as MemberFunction & FreeFunction
-//
-// To sum up, when a customization_point is called like a function:
+// When a customization_point is called like a function:
 //
 //    (*this)(arg1, args...);
 //
-// it tries the following possible implementations, in order:
+// it tries each possible function it was created over, in order:
 //
-// 1. Try to call the customization_point by name as a member function:
+// function1(DerivedOrCP, args...)
+// function2(DerivedOrCP, args...)
+// ...
 //
-//        arg1.customization-point-name(args...)
-//
-// 2. Try to call the customization_point by name as a free function:
-//
-//        customization-point-name(arg1, args...)
-//
-// 3. Try to call the customization point via experimental::invoke:
-//
-//        experimental::invoke(arg1, *this, args...)
-//
-// 4. Try the fallback functions, in order:
-//
-//        fallback-function(arg1, args...)
-//
-// If all of these implementations are ill-formed, then the call to the customization_point is ill-formed.
-
+// The first implementation that is not ill-formed is called.
+// If all of these implementations are ill-formed, then the call
+// to the customization_point is ill-formed.
 
 template<class Derived, class... Functions>
 class customization_point : private multi_function<Functions...>
 {
   private:
-    // in order for invoke_customization_point to receive *this as its first argument,
-    // we need to insert *this as the first parameter passed to the call to multi_function::operator()
-    // however, this "self" parameter is not included in the signature of the other functions ADLFunction & FallbackFunctions...
-    // so, wrap them in a wrapper functor which discards its first parameter before calling the wrapped function
     using super_t = multi_function<Functions...>;
 
     using derived_type = std::conditional_t<
