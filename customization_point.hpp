@@ -7,6 +7,7 @@
 // Inspired by
 // * Eric Niebler's suggested design for customization points and
 // * Cris Cecka's design for customizing customization points
+// * Jared Hoberock's design for multi_functions and customization points
 
 namespace experimental
 {
@@ -78,7 +79,7 @@ struct drop_first_arg_and_invoke
 //       };
 //
 // * CallFreeFunction is a function type whose job is to call the name of the customization point as a free function.
-// 
+//
 //   For example, CallFreeFunction for begin_t could work like this:
 //
 //       struct call_free_function_begin
@@ -106,7 +107,7 @@ struct drop_first_arg_and_invoke
 //        arg1.customization-point-name(args...)
 //
 // 2. Try to call the customization_point by name as a free function:
-//    
+//
 //        customization-point-name(arg1, args...)
 //
 // 3. Try to call the customization point via experimental::invoke:
@@ -120,25 +121,15 @@ struct drop_first_arg_and_invoke
 // If all of these implementations are ill-formed, then the call to the customization_point is ill-formed.
 
 
-template<class Derived, class CallMemberFunction, class CallFreeFunction, class... FallbackFunctions>
-class customization_point : private multi_function<
-  detail::drop_first_arg_and_invoke<CallMemberFunction>,
-  detail::drop_first_arg_and_invoke<CallFreeFunction>,
-  detail::invoke_customization_point,
-  detail::drop_first_arg_and_invoke<FallbackFunctions>...
->
+template<class Derived, class... Functions>
+class customization_point : private multi_function<Functions...>
 {
   private:
     // in order for invoke_customization_point to receive *this as its first argument,
     // we need to insert *this as the first parameter passed to the call to multi_function::operator()
     // however, this "self" parameter is not included in the signature of the other functions ADLFunction & FallbackFunctions...
     // so, wrap them in a wrapper functor which discards its first parameter before calling the wrapped function
-    using super_t = multi_function<
-      detail::drop_first_arg_and_invoke<CallMemberFunction>,
-      detail::drop_first_arg_and_invoke<CallFreeFunction>,
-      detail::invoke_customization_point,
-      detail::drop_first_arg_and_invoke<FallbackFunctions>...
-    >;
+    using super_t = multi_function<Functions...>;
 
     using derived_type = std::conditional_t<
       std::is_void<Derived>::value,
@@ -153,14 +144,11 @@ class customization_point : private multi_function<
 
   public:
     constexpr customization_point()
-      : customization_point(CallMemberFunction{}, CallFreeFunction{}, FallbackFunctions{}...)
+      : customization_point(Functions{}...)
     {}
 
-    constexpr customization_point(CallMemberFunction call_member_function, CallFreeFunction call_free_function, FallbackFunctions... fallback_funcs)
-      : super_t(detail::drop_first_arg_and_invoke<CallMemberFunction>{call_member_function},
-                detail::drop_first_arg_and_invoke<CallFreeFunction>{call_free_function},
-                detail::invoke_customization_point{},
-                detail::drop_first_arg_and_invoke<FallbackFunctions>{fallback_funcs}...)
+    constexpr customization_point(Functions... funcs)
+      : super_t(funcs...)
     {}
 
     template<class Arg1, class... Args>
@@ -172,13 +160,12 @@ class customization_point : private multi_function<
 };
 
 
-template<class CallMemberFunction, class CallFreeFunction, class... FallbackFunctions>
-constexpr customization_point<void,CallMemberFunction,CallFreeFunction,FallbackFunctions...>
-  make_customization_point(CallMemberFunction call_member_func, CallFreeFunction call_free_func, FallbackFunctions... fallback_funcs)
+template<class... Functions, class Derived = void>
+constexpr customization_point<Derived,Functions...>
+make_customization_point(Functions... funcs)
 {
-  return customization_point<void,CallMemberFunction,CallFreeFunction,FallbackFunctions...>(call_member_func, call_free_func, fallback_funcs...);
+  return customization_point<Derived,Functions...>(funcs...);
 }
 
 
 } // end experimental
-
