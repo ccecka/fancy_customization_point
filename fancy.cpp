@@ -14,14 +14,16 @@ void default_begin(ExecutionPolicy&&, Args&&... args)
   //static_assert(sizeof(ExecutionPolicy) == 0, "begin: No dispatch found");  // XXX instantiation...
 }
 
+} // end namespace experimental
 
-namespace detail
+
+namespace expdetail
 {
 
 struct call_member_begin
 {
-  template<class Arg1, class... Args>
-  constexpr auto operator()(Arg1&& arg1, Args&&... args) const ->
+  template<class CP, class Arg1, class... Args>
+  constexpr auto operator()(CP&&, Arg1&& arg1, Args&&... args) const ->
       decltype(std::forward<Arg1>(arg1).begin(std::forward<Args>(args)...))
   {
     return std::forward<Arg1>(arg1).begin(std::forward<Args>(args)...);
@@ -47,22 +49,24 @@ struct call_free_begin
 
 struct default_begin
 {
-  template<class... Args>
-  constexpr auto operator()(Args&&... args) const ->
+  template<class CP, class... Args>
+  constexpr auto operator()(CP&&, Args&&... args) const ->
       decltype(experimental::default_begin(std::forward<Args>(args)...))
   {
     return experimental::default_begin(std::forward<Args>(args)...);
   }
 };
 
+} // end namespace expdetail
 
-} // end detail
 
+namespace experimental
+{
 
-struct begin_t : experimental::customization_point<begin_t,
-                                                   detail::drop_first_arg_and_invoke<detail::call_member_begin>,
-                                                   detail::call_free_begin,
-                                                   detail::drop_first_arg_and_invoke<detail::default_begin>>
+struct begin_t : detail::customization_point<begin_t,
+                                             expdetail::call_member_begin,
+                                             expdetail::call_free_begin,
+                                             expdetail::default_begin>
 {};
 
 constexpr begin_t begin{};

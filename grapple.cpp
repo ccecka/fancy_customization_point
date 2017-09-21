@@ -16,14 +16,16 @@ void default_dot(ExecutionPolicy&&, Args&&... args)
   //static_assert(sizeof(ExecutionPolicy) == 0, "dot: No dispatch found");
 }
 
+} // end namespace experimental
 
-namespace detail
+
+namespace expdetail
 {
 
 struct call_member_dot
 {
-  template<class Arg1, class... Args>
-  constexpr auto operator()(Arg1&& arg1, Args&&... args) const ->
+  template<class CP, class Arg1, class... Args>
+  constexpr auto operator()(CP&&, Arg1&& arg1, Args&&... args) const ->
     decltype(std::forward<Arg1>(arg1).dot(std::forward<Args>(args)...))
   {
     return std::forward<Arg1>(arg1).dot(std::forward<Args>(args)...);
@@ -49,25 +51,29 @@ struct call_free_dot
 
 struct default_dot
 {
-  template<class... Args>
-  constexpr auto operator()(Args&&... args) const ->
+  template<class CP, class... Args>
+  constexpr auto operator()(CP&&, Args&&... args) const ->
     decltype(experimental::default_dot(std::forward<Args>(args)...))
   {
     return experimental::default_dot(std::forward<Args>(args)...);
   }
 };
 
+} // end namespace expdetail
 
-} // end detail
 
+namespace experimental
+{
 
-struct dot_t : experimental::customization_point<dot_t,
-                                                 detail::drop_first_arg_and_invoke<detail::call_member_dot>,
-                                                 detail::call_free_dot,
-                                                 detail::drop_first_arg_and_invoke<detail::default_dot>>
+struct dot_t : detail::customization_point<dot_t,
+                                           expdetail::call_member_dot,
+                                           expdetail::call_free_dot,
+                                           expdetail::default_dot>
 {};
 
-constexpr dot_t dot{};
+namespace {
+constexpr auto const& dot = detail::static_const<dot_t>::value;
+} // end anon namespace
 
 } // end namespace experimental
 
@@ -114,8 +120,7 @@ invoke(const execution_policy<DerivedPolicy>& exec, Function f, T&&... t)
   std::cout << ")" << std::endl;
   exec.prefix_ += "  ";
 
-  using namespace disable;
-  f(remove_customization_point<Function>(exec), std::forward<T>(t)...);
+  f(experimental::remove_customization_point<Function>(exec), std::forward<T>(t)...);
 
   exec.prefix_.erase(exec.prefix_.size()-2);
 }
@@ -140,7 +145,7 @@ int main()
   }
   std::cout << std::endl;
 
-  /*
+
     // XXX TODO
     // invoke(remove_customization_point, ...) = delete
     // gets applied to all base classes of remove_customization_point as well so that
@@ -150,5 +155,5 @@ int main()
   dot(exec);
   }
   std::cout << std::endl;
-  */
+
 }

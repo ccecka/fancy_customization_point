@@ -32,7 +32,7 @@
 
 #define __REQUIRES(...) typename std::enable_if<__VA_ARGS__>::type* = nullptr
 
-namespace disable
+namespace experimental
 {
 
 template <class... T>

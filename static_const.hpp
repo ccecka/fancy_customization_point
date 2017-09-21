@@ -27,45 +27,18 @@
 
 #pragma once
 
-#include <iostream>
-
-#ifndef _MSC_VER
-#   include <cxxabi.h>
-#endif
-#include <typeinfo>
-#include <memory>
-
-template <class T>
-std::string type_name()
+namespace experimental
 {
-  typedef typename std::remove_reference<T>::type TR;
-  std::unique_ptr<char, void(*)(void*)> own
-      (
-#ifndef _MSC_VER
-          abi::__cxa_demangle(typeid(TR).name(), nullptr, nullptr, nullptr),
-#else
-          nullptr,
-#endif
-          std::free
-       );
-  std::string r = own != nullptr ? own.get() : typeid(TR).name();
-  if (std::is_const<TR>::value)
-    r += " const";
-  if (std::is_volatile<TR>::value)
-    r += " volatile";
-  if (std::is_lvalue_reference<T>::value)
-    r += "&";
-  else if (std::is_rvalue_reference<T>::value)
-    r += "&&";
-  return r;
-}
+namespace detail
+{
 
-void print_all() {
-}
+template <typename T>
+struct static_const
+{
+  static constexpr T value {};
+};
+template <typename T>
+constexpr T static_const<T>::value;
 
-template <class T, class... Ts>
-void print_all(T&&, Ts&&... ts) {
-  std::cout << type_name<T>();
-  if (sizeof...(Ts) > 0) std::cout << ", ";
-  print_all(std::forward<Ts>(ts)...);
-}
+} // end namespace detail
+} // end namespace blam
