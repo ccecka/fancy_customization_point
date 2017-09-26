@@ -1,3 +1,30 @@
+/******************************************************************************
+ * Copyright (C) 2016-2017, Cris Cecka.  All rights reserved.
+ * Copyright (C) 2016-2017, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the NVIDIA CORPORATION nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************/
+
 #include "customization_point.hpp"
 #include "invoke.hpp"
 
@@ -120,7 +147,7 @@ invoke(const execution_policy<DerivedPolicy>& exec, Function f, T&&... t)
   std::cout << ")" << std::endl;
   exec.prefix_ += "  ";
 
-  f(experimental::remove_customization_point<Function>(exec), std::forward<T>(t)...);
+  f(experimental::prefer_customization_point<DerivedPolicy, Function>(exec), std::forward<T>(t)...);
 
   exec.prefix_.erase(exec.prefix_.size()-2);
 }
@@ -145,11 +172,6 @@ int main()
   }
   std::cout << std::endl;
 
-
-    // XXX TODO
-    // invoke(remove_customization_point, ...) = delete
-    // gets applied to all base classes of remove_customization_point as well so that
-    // invoke(yours::tag, ...) is not being found.
   {
   other::execution_policy<yours::tag> exec;
   dot(exec);
